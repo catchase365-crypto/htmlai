@@ -782,12 +782,15 @@
 
     <!-- GitHub 仓库选择面板：展示从 GitHub 获取的所有用户仓库列表 -->
     <div id="repoPanel" class="hidden absolute top-14 left-2 z-50 immersive-panel p-4 rounded-2xl w-[90%] max-w-[400px] flex flex-col gap-3 max-h-[60vh] overflow-hidden">
-      <div class="flex justify-between items-center pb-2 border-b border-[var(--border)]">
-        <div class="flex items-center gap-2">
-          <span class="text-xs">📂</span>
-          <span class="text-sm font-bold text-blue-400" data-cn="选择仓库" data-en="Select Repo">选择仓库</span>
+      <div class="flex flex-col gap-2 border-b border-[var(--border)] pb-2">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <span class="text-xs">📂</span>
+            <span class="text-sm font-bold text-blue-400" data-cn="选择仓库" data-en="Select Repo">选择仓库</span>
+          </div>
+          <button onclick="toggleRepoPanel()" class="text-[var(--text-dim)] hover:text-[var(--text-main)]">✕</button>
         </div>
-        <button onclick="toggleRepoPanel()" class="text-[var(--text-dim)] hover:text-[var(--text-main)]">✕</button>
+        <input type="text" id="repoSearchInput" oninput="filterRepos()" data-placeholder-cn="搜索仓库..." data-placeholder-en="Search repos..." placeholder="Search repos..." class="w-full bg-[var(--bg-main)] text-[var(--text-main)] text-[11px] p-2 rounded-lg border border-[var(--border)] focus:border-blue-500 outline-none">
       </div>
       <div id="repoList" class="flex flex-col gap-1 overflow-y-auto no-scrollbar">
         <div class="text-xs text-[var(--text-dim)] text-center py-4" data-cn="暂无仓库..." data-en="No repos found...">暂无仓库...</div>
@@ -1159,6 +1162,7 @@
       const suggestChatInput = document.getElementById('suggestChatInput');
       
       let currentFileName = "index";
+      let cachedRepos = [];
       let historyStack = [];
       let historyIndex = -1;
       const MAX_HISTORY = 100;
@@ -1978,18 +1982,27 @@
       // 连接 GitHub API 获取用户的仓库列表
       async function ghListRepos() {
           try {
-              const repos = await ghFetch(`/user/repos?per_page=100&sort=updated&t=${Date.now()}`);
-              const repoList = document.getElementById('repoList');
-              if (repoList) {
-                  repoList.innerHTML = repos.map(r => `
-                      <button onclick="selectRepo('${r.full_name}', '${r.html_url}')" class="text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
-                          <span class="truncate pr-2 font-mono font-bold">${r.name}</span>
-                          <span class="text-[9px] text-[var(--text-dim)] shrink-0 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">${r.private ? 'Private' : 'Public'}</span>
-                      </button>
-                  `).join('');
-              }
+              cachedRepos = await ghFetch(`/user/repos?per_page=100&sort=updated&t=${Date.now()}`);
+              filterRepos();
               editorNotify(currentLang === 'cn' ? '仓库列表已更新' : 'Repo list updated');
           } catch (e) { editorNotify("GitHub: " + e.message, 'error'); }
+      }
+
+      function filterRepos() {
+          const term = document.getElementById('repoSearchInput')?.value.toLowerCase() || '';
+          const filtered = cachedRepos.filter(r => r.name.toLowerCase().includes(term));
+          const repoList = document.getElementById('repoList');
+          if (!repoList) return;
+          if (filtered.length === 0) {
+              repoList.innerHTML = `<div class="text-xs text-[var(--text-dim)] text-center py-4">${currentLang === 'cn' ? '未找到匹配项' : 'No matches found'}</div>`;
+              return;
+          }
+          repoList.innerHTML = filtered.map(r => `
+              <button onclick="selectRepo('${r.full_name}', '${r.html_url}')" class="text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
+                  <span class="truncate pr-2 font-mono font-bold">${r.name}</span>
+                  <span class="text-[9px] text-[var(--text-dim)] shrink-0 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">${r.private ? 'Private' : 'Public'}</span>
+              </button>
+          `).join('');
       }
       
       // 在 UI 中选中一个仓库，并记录其名称与 URL
@@ -2007,6 +2020,14 @@
           const panel = document.getElementById('repoPanel');
           if(panel) {
               panel.classList.toggle('hidden');
+              if (!panel.classList.contains('hidden')) {
+                  const searchInput = document.getElementById('repoSearchInput');
+                  if (searchInput) {
+                      searchInput.value = '';
+                      filterRepos();
+                      searchInput.focus();
+                  }
+              }
           }
       }
       
