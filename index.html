@@ -13,7 +13,7 @@
           --bg-main: #161122;
           --bg-ui: #1e192c;
           --border: #352e46;
-          --text-main: #e2e8f0
+          --text-main: #e2e8f0;
           --text-dim: #94a3b8;
           --accent: #a78bfa;
           --caret: #ffffff;
@@ -26,10 +26,10 @@
           --editor-padding: 12px;
           /* 哑光代码着色变量 */
           --syn-comment: #6a737d;
-          --syn-tag: #d73a49;
-          --syn-attr: #6f42c1;
-          --syn-string: #032f62;
-          --syn-func: #005cc5;
+          --syn-tag: #f97583;
+          --syn-attr: #ffab70;
+          --syn-string: #9ecbff;
+          --syn-func: #b392f0;
           /* 亮色主题阴影透明度调节 */
           --panel-shadow-opacity: 0.1;
       }
@@ -1238,7 +1238,14 @@
               root.style.setProperty('--border', theme.border);
               root.style.setProperty('--caret', theme.caret);
               root.style.setProperty('--badge-txt', theme["badge-txt"]);
-              root.style.setProperty('--line-num-bg', theme.bg);
+              root.style.setProperty('--line-num-bg', theme.ln || theme.bg);
+              if (theme.syn) {
+                  root.style.setProperty('--syn-comment', theme.syn.c);
+                  root.style.setProperty('--syn-tag', theme.syn.t);
+                  root.style.setProperty('--syn-string', theme.syn.s);
+                  root.style.setProperty('--syn-func', theme.syn.f);
+                  root.style.setProperty('--syn-attr', theme.syn.a);
+              }
           } else {
               applyTheme(savedThemeIdx ? parseInt(savedThemeIdx) : 0);
           }
