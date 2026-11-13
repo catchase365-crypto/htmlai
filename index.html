@@ -305,9 +305,11 @@
                   }
               });
               codeArea.value = newCode;
+              localStorage.setItem('html_editor_ult_content', newCode);
               updateHighlight();
               updateLineNumbers();
               saveHistory();
+              addLog(`Clipboard Diff: ${changes.length} changes`, changes);
               editorNotify(currentLang === 'cn' ? '已应用剪贴板修改' : 'Changes applied from clipboard');
           } catch (e) {
               editorNotify(currentLang === 'cn' ? '解析失败：请确保剪贴板包含合法的 JSON Diff' : 'Parse error: Ensure valid JSON Diff', 'error');
@@ -1216,7 +1218,7 @@
       let cachedRepos = [];
       let historyStack = [];
       let historyIndex = -1;
-      const MAX_HISTORY = 100;
+      const MAX_HISTORY = 20;
       let debounceTimer, previewWindow = null;
       
       window.onload = function() {
@@ -2335,7 +2337,7 @@
           let logs = JSON.parse(localStorage.getItem('editor_logs') || '[]');
           const timestamp = new Date().toLocaleTimeString();
           logs.unshift({ time: timestamp, msg, details });
-          if(logs.length > 50) logs.pop();
+          if(logs.length > 20) logs.length = 20;
           localStorage.setItem('editor_logs', JSON.stringify(logs));
       }
       
