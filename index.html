@@ -692,6 +692,9 @@
       </div>
     </header>
 
+    <!-- 全局浮窗点击外部关闭遮罩层：拦截空白区域点击，防止穿透到代码区弹出键盘 -->
+    <div id="panelBackdrop" onclick="handleBackdropClick()" class="hidden fixed inset-0 z-40 bg-transparent"></div>
+
     <!-- 智能建议面板：分析代码并生成可点击的优化建议，包含 Chip 标签和输入框 -->
     <div id="suggestionPanel" class="hidden absolute top-14 left-2 z-50 immersive-panel p-4 rounded-2xl w-[90%] max-w-[400px] flex flex-col gap-3">
       <div class="flex justify-between items-center pb-2 border-b border-[var(--border)]">
@@ -733,17 +736,11 @@
 
       <div class="flex flex-col gap-1">
         <label class="text-[10px] text-[var(--text-dim)] uppercase" data-cn="模型" data-en="Model">模型</label>
-        <select id="aiModelSelect" onchange="saveAiModel()" class="bg-[var(--bg-main)] text-[var(--text-main)] text-xs p-2 rounded border border-[var(--border)] focus:border-purple-500 outline-none">
-          <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite</option>
-          <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite</option>
-          <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
-          <option value="gemini-3.6-flash">gemini-3.6-flash</option>
-          <option value="gemini-3.8-flash">gemini-3.8-flash</option>
-          <option value="gemini-4-hydrogen">gemini-4-hydrogen</option>
-          <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
-          <option value="gemini-4-argon">gemini-4-argon</option>
-          <option value="gemini-4-carbon">gemini-4-carbon</option>
-        </select>
+        <input type="hidden" id="aiModelSelect" value="gemini-4-carbon">
+        <button type="button" id="aiModelSelectBtn" onclick="toggleModelPanel()" class="bg-[var(--bg-main)] text-[var(--text-main)] text-xs p-2 rounded border border-[var(--border)] focus:border-purple-500 outline-none flex justify-between items-center text-left">
+          <span id="aiModelSelectText" class="font-mono truncate">gemini-4-carbon</span>
+          <span class="text-[10px] text-[var(--text-dim)] ml-2">▼</span>
+        </button>
       </div>
 
       <div class="flex flex-col gap-1">
@@ -783,6 +780,55 @@
       <button onclick="applyRandomTheme()" class="w-full text-left px-3 py-2 rounded text-sm bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold hover:scale-[1.02] transition shadow-lg flex items-center gap-2">
         <span>🎲</span> <span data-cn="随机样式" data-en="Random Style">随机样式</span>
       </button>
+    </div>
+
+    <!-- AI 模型选择面板：自定义磨砂浮窗，避免移动端原生 select 满屏弹窗 -->
+    <div id="modelPanel" class="hidden absolute top-14 left-2 z-[60] immersive-panel p-4 rounded-2xl w-[90%] max-w-[400px] flex flex-col gap-2 max-h-[65vh] overflow-hidden">
+      <div class="flex justify-between items-center border-b border-[var(--border)] pb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-xs">🤖</span>
+          <span class="text-sm font-bold text-purple-400" data-cn="选择模型" data-en="Select Model">选择模型</span>
+        </div>
+        <button onclick="toggleModelPanel()" class="text-[var(--text-dim)] hover:text-[var(--text-main)]">✕</button>
+      </div>
+      <div id="modelList" class="flex flex-col gap-1 overflow-y-auto no-scrollbar">
+        <button type="button" onclick="selectAiModel('gemini-3.1-flash-lite')" data-model="gemini-3.1-flash-lite" class="model-opt-btn text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
+          <span class="font-mono font-bold">gemini-3.1-flash-lite</span>
+          <span class="text-[9px] text-emerald-400 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">⚡ 极速轻量</span>
+        </button>
+        <button type="button" onclick="selectAiModel('gemini-3.5-flash-lite')" data-model="gemini-3.5-flash-lite" class="model-opt-btn text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
+          <span class="font-mono font-bold">gemini-3.5-flash-lite</span>
+          <span class="text-[9px] text-emerald-400 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">⚡ 轻量主力</span>
+        </button>
+        <button type="button" onclick="selectAiModel('gemini-3-flash-preview')" data-model="gemini-3-flash-preview" class="model-opt-btn text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
+          <span class="font-mono font-bold">gemini-3-flash-preview</span>
+          <span class="text-[9px] text-sky-400 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">🚀 3.0 预览</span>
+        </button>
+        <button type="button" onclick="selectAiModel('gemini-3.6-flash')" data-model="gemini-3.6-flash" class="model-opt-btn text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
+          <span class="font-mono font-bold">gemini-3.6-flash</span>
+          <span class="text-[9px] text-sky-400 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">🚀 3.6 通用</span>
+        </button>
+        <button type="button" onclick="selectAiModel('gemini-3.8-flash')" data-model="gemini-3.8-flash" class="model-opt-btn text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
+          <span class="font-mono font-bold">gemini-3.8-flash</span>
+          <span class="text-[9px] text-blue-400 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">🚀 编程主力</span>
+        </button>
+        <button type="button" onclick="selectAiModel('gemini-4-hydrogen')" data-model="gemini-4-hydrogen" class="model-opt-btn text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
+          <span class="font-mono font-bold">gemini-4-hydrogen</span>
+          <span class="text-[9px] text-amber-400 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">🆕 11.12最新</span>
+        </button>
+        <button type="button" onclick="selectAiModel('gemini-3.1-pro-preview')" data-model="gemini-3.1-pro-preview" class="model-opt-btn text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
+          <span class="font-mono font-bold">gemini-3.1-pro-preview</span>
+          <span class="text-[9px] text-purple-400 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">👑 3.1 旗舰</span>
+        </button>
+        <button type="button" onclick="selectAiModel('gemini-4-argon')" data-model="gemini-4-argon" class="model-opt-btn text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
+          <span class="font-mono font-bold">gemini-4-argon</span>
+          <span class="text-[9px] text-purple-400 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">👑 4代旗舰</span>
+        </button>
+        <button type="button" onclick="selectAiModel('gemini-4-carbon')" data-model="gemini-4-carbon" class="model-opt-btn text-left px-3 py-2 rounded-lg text-xs hover:bg-[var(--bg-main)] transition border border-transparent hover:border-[var(--border)] flex justify-between items-center text-[var(--text-main)] w-full">
+          <span class="font-mono font-bold">gemini-4-carbon</span>
+          <span class="text-[9px] text-rose-400 px-1.5 py-0.5 rounded bg-[var(--bg-main)] border border-[var(--border)]">👑 顶配推理</span>
+        </button>
+      </div>
     </div>
 
     <!-- GitHub 仓库选择面板：展示从 GitHub 获取的所有用户仓库列表 -->
@@ -968,7 +1014,7 @@
     <!-- GitHub 整合行：处理仓库选择、同步、拉取及部署 Pages -->
     <div id="githubRow" class="ui-panel p-1.5 flex flex-nowrap items-center gap-2 shrink-0 z-10 overflow-x-auto no-scrollbar">
       <div class="flex items-center gap-1 shrink-0">
-        <button class="text-sm px-1" title="GitHub Settings" onclick="document.getElementById('ghPanel').classList.toggle('hidden')">
+        <button class="text-sm px-1" title="GitHub Settings" onclick="toggleGhPanel()">
           <svg class="w-5 h-5 fill-current text-[var(--accent)]" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
           </svg>
@@ -976,7 +1022,7 @@
         <div id="ghPanel" class="hidden absolute bottom-10 left-2 z-50 immersive-panel p-4 rounded-2xl w-[200px]">
           <label class="text-[10px] text-[var(--text-dim)] uppercase">GitHub Token</label>
           <input type="password" id="ghToken" placeholder="ghp_..." class="w-full bg-[var(--bg-main)] text-[var(--text-main)] text-xs p-2 mt-1 rounded border border-[var(--border)] focus:border-blue-500 outline-none">
-          <button onclick="document.getElementById('ghPanel').classList.add('hidden')" class="w-full mt-2 bg-blue-600 text-white text-xs py-1.5 rounded" data-cn="保存" data-en="Save">保存</button>
+          <button onclick="closeAllPanels()" class="w-full mt-2 bg-blue-600 text-white text-xs py-1.5 rounded" data-cn="保存" data-en="Save">保存</button>
           <button id="ghHelpBtn" onclick="showGhHelp()" class="w-full mt-1 bg-gray-700 text-white text-[10px] py-1 rounded" data-cn="查看按钮功能说明" data-en="View Button Functions">查看按钮功能说明</button>
         </div>
       </div>
@@ -1204,12 +1250,9 @@
           const savedKey = localStorage.getItem('gemini_api_key');
           if(savedKey) apiKeyInput.value = savedKey;
           // 恢复 AI 模型
+          const validModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-4-hydrogen', 'gemini-3.1-pro-preview', 'gemini-4-argon', 'gemini-4-carbon'];
           const savedModel = localStorage.getItem('gemini_selected_model');
-          if (savedModel && Array.from(aiModelSelect.options).some(o => o.value === savedModel)) {
-              aiModelSelect.value = savedModel;
-          } else {
-              aiModelSelect.value = "gemini-4-carbon";
-          }
+          selectAiModel(savedModel && validModels.includes(savedModel) ? savedModel : "gemini-4-carbon", true);
       
           // 恢复 UI 状态
           if (localStorage.getItem('html_editor_linenum_visible') === 'false') toggleLineNumbers();
@@ -1263,23 +1306,65 @@
           });
       }
       
-      // --- 2. AI 核心逻辑 (Gemini 2.5) ---
-      // 切换 AI 助手面板的显示状态
-      function toggleAiPanel() {
-          aiPanel.classList.toggle('hidden');
-          if (!aiPanel.classList.contains('hidden')) {
-              suggestionPanel.classList.add('hidden');
-              aiPromptInput.focus();
+      // --- 2. 面板管理与 AI 核心逻辑 ---
+      const ALL_PANELS = ['aiPanel', 'suggestionPanel', 'themePanel', 'repoPanel', 'modelPanel', 'ghPanel', 'logPanel'];
+
+      function syncBackdrop() {
+          const backdrop = document.getElementById('panelBackdrop');
+          if (!backdrop) return;
+          const anyOpen = ALL_PANELS.some(id => {
+              const el = document.getElementById(id);
+              return el && !el.classList.contains('hidden');
+          });
+          backdrop.classList.toggle('hidden', !anyOpen);
+      }
+
+      function closeAllPanels(exceptIds = []) {
+          ALL_PANELS.forEach(id => {
+              if (!exceptIds.includes(id)) {
+                  const el = document.getElementById(id);
+                  if (el) el.classList.add('hidden');
+              }
+          });
+          if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+              document.activeElement.blur();
           }
+          syncBackdrop();
+      }
+
+      function handleBackdropClick() {
+          const modelPanel = document.getElementById('modelPanel');
+          if (modelPanel && !modelPanel.classList.contains('hidden') && !aiPanel.classList.contains('hidden')) {
+              modelPanel.classList.add('hidden');
+              syncBackdrop();
+              return;
+          }
+          closeAllPanels();
+      }
+
+      // 切换 AI 助手面板的显示状态（不自动聚焦输入框，避免手机自动弹键盘）
+      function toggleAiPanel() {
+          const willOpen = aiPanel.classList.contains('hidden');
+          closeAllPanels();
+          if (willOpen) aiPanel.classList.remove('hidden');
+          syncBackdrop();
       }
       
-      // 切换智能建议面板的显示状态
+      // 切换智能建议面板的显示状态（不自动聚焦输入框，避免手机自动弹键盘）
       function toggleSuggestionPanel() {
-          suggestionPanel.classList.toggle('hidden');
-          if (!suggestionPanel.classList.contains('hidden')) {
-              aiPanel.classList.add('hidden');
-              suggestChatInput.focus();
-          }
+          const willOpen = suggestionPanel.classList.contains('hidden');
+          closeAllPanels();
+          if (willOpen) suggestionPanel.classList.remove('hidden');
+          syncBackdrop();
+      }
+
+      // 切换 GitHub Token 面板
+      function toggleGhPanel() {
+          const ghPanel = document.getElementById('ghPanel');
+          const willOpen = ghPanel.classList.contains('hidden');
+          closeAllPanels();
+          if (willOpen) ghPanel.classList.remove('hidden');
+          syncBackdrop();
       }
       
       // 清空智能建议列表并移除本地缓存
@@ -1365,6 +1450,33 @@
           callGemini();
       }
       
+      // 切换 AI 模型选择面板的显示状态
+      function toggleModelPanel() {
+          const panel = document.getElementById('modelPanel');
+          if (panel) {
+              panel.classList.toggle('hidden');
+              syncBackdrop();
+          }
+      }
+
+      // 选中 AI 模型并更新 UI 与本地存储
+      function selectAiModel(modelName, skipToggle = false) {
+          aiModelSelect.value = modelName;
+          const textEl = document.getElementById('aiModelSelectText');
+          if (textEl) textEl.textContent = modelName;
+          document.querySelectorAll('.model-opt-btn').forEach(btn => {
+              if (btn.dataset.model === modelName) {
+                  btn.classList.add('bg-[var(--bg-main)]', 'border-[var(--accent)]');
+                  btn.classList.remove('border-transparent');
+              } else {
+                  btn.classList.remove('bg-[var(--bg-main)]', 'border-[var(--accent)]');
+                  btn.classList.add('border-transparent');
+              }
+          });
+          saveAiModel();
+          if (!skipToggle) toggleModelPanel();
+      }
+
       // 保存用户选择的 AI 模型设置到本地存储
       function saveAiModel() {
           localStorage.setItem('gemini_selected_model', aiModelSelect.value);
@@ -1656,7 +1768,12 @@
       }
       
       // 切换主题/设置面板的显示或隐藏
-      function toggleThemePanel() { themePanel.classList.toggle('hidden'); }
+      function toggleThemePanel() {
+          const willOpen = themePanel.classList.contains('hidden');
+          closeAllPanels();
+          if (willOpen) themePanel.classList.remove('hidden');
+          syncBackdrop();
+      }
       
       // 将当前编辑器内容压入历史栈以实现撤销/重做
       function saveHistory() {
@@ -1964,6 +2081,7 @@
               </div>
           `;
           document.body.appendChild(modal);
+          syncBackdrop();
       }
       // 封装 GitHub API 的 Fetch 请求，处理鉴权 Token 和通用头部
       async function ghFetch(path, options = {}) {
@@ -2024,15 +2142,17 @@
       function toggleRepoPanel() {
           const panel = document.getElementById('repoPanel');
           if(panel) {
-              panel.classList.toggle('hidden');
-              if (!panel.classList.contains('hidden')) {
+              const willOpen = panel.classList.contains('hidden');
+              closeAllPanels();
+              if (willOpen) {
+                  panel.classList.remove('hidden');
                   const searchInput = document.getElementById('repoSearchInput');
                   if (searchInput) {
                       searchInput.value = '';
                       filterRepos();
-                      searchInput.focus();
                   }
               }
+              syncBackdrop();
           }
       }
       
@@ -2214,7 +2334,14 @@
       
       function showLogModal() {
           let modal = document.getElementById('logPanel');
-          if (modal) { modal.classList.toggle('hidden'); return; }
+          if (modal) {
+              const willOpen = modal.classList.contains('hidden');
+              closeAllPanels();
+              if (willOpen) modal.classList.remove('hidden');
+              syncBackdrop();
+              return;
+          }
+          closeAllPanels();
           
           modal = document.createElement('div');
           modal.id = 'logPanel';
@@ -2227,7 +2354,7 @@
                   <h3 class="font-bold text-[var(--accent)] text-sm" data-cn="操作日志" data-en="Action Logs">${isCn ? '操作日志' : 'Action Logs'}</h3>
                   <div class="flex gap-2">
                       <button onclick="localStorage.removeItem('editor_logs');this.closest('#logPanel').remove();showLogModal()" class="text-[10px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded" data-cn="清除" data-en="Clear">${isCn ? '清除' : 'Clear'}</button>
-                      <button onclick="this.closest('#logPanel').classList.add('hidden')" class="text-[var(--text-dim)]">✕</button>
+                      <button onclick="closeAllPanels()" class="text-[var(--text-dim)]">✕</button>
                   </div>
               </div>
               <div class="flex-grow overflow-y-auto text-[10px] font-mono flex flex-col gap-2">
