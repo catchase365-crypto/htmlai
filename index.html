@@ -1069,6 +1069,11 @@
       </button>
       <button onclick="showStructureExplorer()" class="icon-btn text-xs w-7 h-7 !p-0 border-blue-500/30 flex items-center justify-center" data-title-cn="结构浏览器" data-title-en="Structure Explorer" title="Structure Explorer">🌿</button>
       <button onclick="applyClipboardDiff()" class="icon-btn text-xs w-7 h-7 !p-0 border-purple-500/30 flex items-center justify-center" data-title-cn="应用剪贴板 Diff" data-title-en="Apply Clipboard Diff" title="Apply Clipboard Diff">⚡</button>
+      <button onclick="processEditorCdnInline()" class="icon-btn text-xs w-7 h-7 !p-0 border-sky-500/30 flex items-center justify-center" data-title-cn="CDN纯离线内嵌打包" data-title-en="CDN Inline Bundle" title="CDN Inline Bundle">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4">
+          <path d="M19 11H17V8C17 5.24 14.76 3 12 3C9.24 3 7 5.24 7 8H5C3.9 8 3 8.9 3 10V20C3 21.1 3.9 22 5 22H19C20.1 22 21 21.1 21 20V13C21 11.9 20.1 11 19 11ZM12 17C10.9 17 10 16.1 10 15C10 13.9 10.9 13 12 13C13.1 13 14 13.9 14 15C14 16.1 13.1 17 12 17ZM16 11H8V8C8 5.79 9.79 4 12 4C14.21 4 16 5.79 16 8V11Z" fill="currentColor"/>
+        </svg>
+      </button>
       <div class="w-[1px] h-6 bg-[var(--border)] shrink-0"></div>
       <button onclick="toggleFoldComments()" class="icon-btn text-xs w-7 h-7 !p-0 border-teal-500/30 flex items-center justify-center" data-title-cn="切换代码折叠/展开" data-title-en="Toggle Fold/Unfold" title="Toggle Fold/Unfold">🤏</button>
     </div>
@@ -2564,6 +2569,145 @@
     document.body.appendChild(modal);
     updateUI();
 }
+
+      // CDN 纯离线内嵌打包处理函数（针对当前编辑器代码）
+      async function processEditorCdnInline() {
+          const rawHtml = codeArea.value;
+          if (!rawHtml || !rawHtml.includes('<')) {
+              editorNotify(currentLang === 'cn' ? '编辑器代码为空或无效' : 'Editor code is empty or invalid', 'error');
+              return;
+          }
+          
+          const TAG_S = 'scr' + 'ipt';
+          const TAG_ST = 'sty' + 'le';
+          const OPEN_S = '<' + TAG_S + '>';
+          const CLOSE_S = '<' + '/' + TAG_S + '>';
+          const SAFE_CLOSE_S = '<' + '\\/' + TAG_S + '>';
+          const OPEN_ST = '<' + TAG_ST + '>';
+          const CLOSE_ST = '<' + '/' + TAG_ST + '>';
+
+          const sPattern = '<' + TAG_S + '\\b[^>]*?\\bsrc\\s*=\\s*["\']((?:https?:)?\\/\\/[^"\']+)["\'][^>]*>(?:\\s*<\\/' + TAG_S + '>)?';
+          const sRegex = new RegExp(sPattern, 'gi');
+
+          const lPattern = '<link\\b[^>]*?\\bhref\\s*=\\s*["\']((?:https?:)?\\/\\/[^"\']+)["\'][^>]*>';
+          const lRegex = new RegExp(lPattern, 'gi');
+
+          const sMatches = [];
+          let m;
+          while ((m = sRegex.exec(rawHtml)) !== null) {
+              sMatches.push({ full: m[0], url: m[1] });
+          }
+
+          const lMatches = [];
+          while ((m = lRegex.exec(rawHtml)) !== null) {
+              if (/rel\\s*=\\s*["']?stylesheet["']?/i.test(m[0])) {
+                  lMatches.push({ full: m[0], url: m[1] });
+              }
+          }
+
+          if (sMatches.length === 0 && lMatches.length === 0) {
+              editorNotify(currentLang === 'cn' ? '✅ 检测完毕：该代码已完全离线化，无需补全 CDN。' : 'No CDN dependencies found.', 'info');
+              return;
+          }
+
+          const total = sMatches.length + lMatches.length;
+          editorNotify(currentLang === 'cn' ? `⏳ 正在拉取并内嵌 ${total} 个外部 CDN 资源...` : `Fetching ${total} CDN resources...`, 'info', 4000);
+
+          let resultHtml = rawHtml;
+          let successCount = 0;
+          let failCount = 0;
+
+          for (let i = 0; i < sMatches.length; i++) {
+              const item = sMatches[i];
+              let url = item.url.trim();
+              if (url.indexOf('//') === 0) url = 'https:' + url;
+
+              try {
+                  const res = await fetch(url);
+                  if (!res.ok) throw new Error('HTTP ' + res.status);
+                  let code = await res.text();
+                  const safeRegex = new RegExp(CLOSE_S, 'gi');
+                  code = code.replace(safeRegex, SAFE_CLOSE_S);
+                  const inlined = OPEN_S + '\n' + code + '\n' + CLOSE_S;
+                  resultHtml = resultHtml.replace(item.full, () => inlined);
+                  successCount++;
+              } catch (err) {
+                  failCount++;
+              }
+          }
+
+          for (let j = 0; j < lMatches.length; j++) {
+              const item = lMatches[j];
+              let url = item.url.trim();
+              if (url.indexOf('//') === 0) url = 'https:' + url;
+
+              try {
+                  const res = await fetch(url);
+                  if (!res.ok) throw new Error('HTTP ' + res.status);
+                  const css = await res.text();
+                  const inlinedCss = OPEN_ST + '\n' + css + '\n' + CLOSE_ST;
+                  resultHtml = resultHtml.replace(item.full, () => inlinedCss);
+                  successCount++;
+              } catch (err) {
+                  failCount++;
+              }
+          }
+
+          // 创建纯内嵌打包结果的底部快捷弹窗（仅含复制与下载按钮）
+          showCdnResultModal(resultHtml, successCount, failCount);
+      }
+
+      function showCdnResultModal(processedHtml, successCount, failCount) {
+          const oldModal = document.getElementById('cdnResultModal');
+          if (oldModal) oldModal.remove();
+
+          const modal = document.createElement('div');
+          modal.id = 'cdnResultModal';
+          modal.className = 'fixed inset-0 z-[10002] flex items-center justify-center bg-black/70 backdrop-blur-md p-4';
+          modal.onclick = () => modal.remove();
+
+          const isCn = currentLang === 'cn';
+          const msg = isCn ? 
+              `🎉 CDN 打包完成！成功内嵌 ${successCount} 个资源${failCount > 0 ? ` (失败 ${failCount} 个)` : ''}` :
+              `🎉 Bundled ${successCount} resources${failCount > 0 ? ` (${failCount} failed)` : ''}`;
+
+          modal.innerHTML = `
+              <div class="immersive-panel p-6 rounded-3xl w-full max-w-sm flex flex-col gap-4 animate-in zoom-in duration-200" onclick="event.stopPropagation()">
+                  <div class="flex justify-between items-center border-b border-[var(--border)] pb-2">
+                      <h3 class="text-sm font-bold text-sky-400">${isCn ? 'CDN 纯离线打包就绪' : 'CDN Bundle Ready'}</h3>
+                      <button onclick="this.closest('.fixed').remove()" class="text-[var(--text-dim)] hover:text-white transition-colors">✕</button>
+                  </div>
+                  <p class="text-xs text-[var(--text-main)] leading-relaxed">${msg}</p>
+                  <div class="flex gap-3 mt-2">
+                      <button id="modalCopyBtn" class="flex-1 py-2.5 rounded-xl text-xs bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] font-bold hover:bg-[var(--border)] transition-colors">📋 ${isCn ? '一键复制' : 'Copy'}</button>
+                      <button id="modalDownloadBtn" class="flex-1 py-2.5 rounded-xl text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold transition-colors">💾 ${isCn ? '下载文件' : 'Download'}</button>
+                  </div>
+              </div>
+          `;
+
+          modal.querySelector('#modalCopyBtn').onclick = () => {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                  navigator.clipboard.writeText(processedHtml).then(() => {
+                      editorNotify(isCn ? '完整离线代码已复制到剪贴板！' : 'Copied to clipboard!');
+                      modal.remove();
+                  });
+              }
+          };
+
+          modal.querySelector('#modalDownloadBtn').onclick = () => {
+              const blob = new Blob([processedHtml], { type: 'text/html;charset=utf-8' });
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = `offline_bundle_${Date.now()}.html`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+              editorNotify(isCn ? '离线版 HTML 已开始下载！' : 'Download started!');
+              modal.remove();
+          };
+
+          document.body.appendChild(modal);
+          syncBackdrop();
+      }
 
       // 修改当前选定 GitHub 仓库的显示名称
       async function ghRenameRepo() {
